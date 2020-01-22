@@ -13,16 +13,24 @@ import (
 )
 
 func runlua(actualCode string) (res string, err error) {
-	code := strings.TrimSpace(actualCode)
-	if code == "" {
+	actualCode = strings.TrimSpace(actualCode)
+	if actualCode == "" {
 		return "", nil
+	}
+
+	if strings.Index(actualCode, "\n") == -1 {
+		actualCode = "return " + actualCode
 	}
 
 	L := lua.NewState()
 	defer L.Close()
 	L.OpenLibs()
 
-	code = fmt.Sprintf(`
+	lunatico.SetGlobals(L, map[string]interface{}{
+		"code": actualCode,
+	})
+
+	code := `
 sandbox_env = {
   ipairs = ipairs,
   next = next,
@@ -38,7 +46,7 @@ sandbox_env = {
       rep = string.rep, reverse = string.reverse, sub = string.sub,
       upper = string.upper },
   table = { insert = table.insert, maxn = table.maxn, remove = table.remove,
-      sort = table.sort },
+      sort = table.sort, pack = table.pack },
   math = { abs = math.abs, acos = math.acos, asin = math.asin,
       atan = math.atan, atan2 = math.atan2, ceil = math.ceil, cos = math.cos,
       cosh = math.cosh, deg = math.deg, exp = math.exp, floor = math.floor,
@@ -48,25 +56,28 @@ sandbox_env = {
       rad = math.rad, random = math.random, randomseed = math.randomseed,
       sin = math.sin, sinh = math.sinh, sqrt = math.sqrt, tan = math.tan, tanh = math.tanh },
   os = { clock = os.clock, difftime = os.difftime, time = os.time, date = os.date },
-  print = print
+  print = function (...)
+    local args = table.pack(...)
+    printed[#printed + 1] = {}
+    for i, v in ipairs(args) do
+      printed[#printed][i] = tostring(v)
+    end
+  end,
 }
 
+printed = {}
+
+_calls = 0
 function count ()
   _calls = _calls + 1
   if _calls > 100 then
     error('timeout!')
   end
 end
-
 debug.sethook(count, 'c')
 
-local original = _ENV
-_ENV = sandbox_env
-_calls = 0
-original.ret = %s
-_ENV = original
-    `, code)
-
+ret = load(code, 'runenv', 't', sandbox_env)()
+    `
 	err = L.DoString(code)
 	if err != nil {
 		st := stackTraceWithCode(err.Error(), code)
@@ -75,10 +86,25 @@ _ENV = original
 		return
 	}
 
-	globalsAfter := lunatico.GetGlobals(L, "ret")
+	var result string
+
+	globalsAfter := lunatico.GetGlobals(L, "ret", "printed")
+
+	printed := globalsAfter["printed"]
+	if printedarr, ok := printed.([]interface{}); ok {
+		for _, line := range printedarr {
+			if rows, ok := line.([]interface{}); ok {
+				for _, row := range rows {
+					result += row.(string) + "\t"
+				}
+				result += "\n"
+			}
+		}
+	}
+
 	bres, _ := json.MarshalIndent(globalsAfter["ret"], "", "  ")
-	result := string(bres)
-	log.Debug().Str("code", actualCode).Str("ret", result).Msg("ran")
+	result += string(bres)
+	log.Debug().Str("code", actualCode).Str("result", result).Msg("ran")
 
 	return result, nil
 }

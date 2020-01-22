@@ -31,22 +31,16 @@ func handleInlineQuery(q *tgbotapi.InlineQuery) {
 		return
 	}
 
-	bot.AnswerInlineQuery(tgbotapi.InlineConfig{
+	_, err = bot.AnswerInlineQuery(tgbotapi.InlineConfig{
 		InlineQueryID: q.ID,
 		Results: []interface{}{
-			tgbotapi.InlineQueryResultArticle{
-				Type:                "article",
-				ID:                  "result",
-				Title:               ret,
-				InputMessageContent: ret,
-			},
-			tgbotapi.InlineQueryResultArticle{
-				Type:                "article",
-				ID:                  "full",
-				Title:               code + " => " + ret,
-				InputMessageContent: code + " => " + ret,
-			},
+			tgbotapi.NewInlineQueryResultArticle("result", ret, ret),
+			tgbotapi.NewInlineQueryResultArticle("full", code+" => "+ret, code+" => "+ret),
 		},
-		CacheTime: 180,
+		IsPersonal: false,
+		CacheTime:  30,
 	})
+	if err != nil {
+		log.Warn().Err(err).Msg("inline results")
+	}
 }

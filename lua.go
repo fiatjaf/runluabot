@@ -12,12 +12,15 @@ import (
 	"github.com/fiatjaf/lunatico"
 )
 
-func runlua(code string) (res string, err error) {
+func runlua(actualCode string) (res string, err error) {
+	code := strings.TrimSpace(actualCode)
+	if code == "" {
+		return "", nil
+	}
+
 	L := lua.NewState()
 	defer L.Close()
 	L.OpenLibs()
-
-	fmt.Println(code)
 
 	code = fmt.Sprintf(`
 sandbox_env = {
@@ -45,29 +48,23 @@ sandbox_env = {
       rad = math.rad, random = math.random, randomseed = math.randomseed,
       sin = math.sin, sinh = math.sinh, sqrt = math.sqrt, tan = math.tan, tanh = math.tanh },
   os = { clock = os.clock, difftime = os.difftime, time = os.time, date = os.date },
+  print = print
 }
 
-function run (sandbox_env, func, ...)
-  local original = _ENV
-  _ENV = sandbox_env
-  local ret = func(...)
-  _ENV = original
-  return ret
-end
-
-function call ()
-  return %s
-end
-
-_calls = 0
-debug.sethook(function ()
+function count ()
   _calls = _calls + 1
   if _calls > 100 then
     error('timeout!')
   end
-end, 'c')
+end
 
-ret = run(sandbox_env, call)
+debug.sethook(count, 'c')
+
+local original = _ENV
+_ENV = sandbox_env
+_calls = 0
+original.ret = %s
+_ENV = original
     `, code)
 
 	err = L.DoString(code)
@@ -80,8 +77,10 @@ ret = run(sandbox_env, call)
 
 	globalsAfter := lunatico.GetGlobals(L, "ret")
 	bres, _ := json.Marshal(globalsAfter["ret"])
+	result := string(bres)
+	log.Debug().Str("code", actualCode).Str("ret", result).Msg("ran")
 
-	return string(bres), nil
+	return result, nil
 }
 
 var reNumber = regexp.MustCompile("\\d+")

@@ -19,7 +19,7 @@ func handleMessage(message *tgbotapi.Message) {
 		return
 	}
 
-	sendMessageAsReply(message.Chat.ID, ret, message.MessageID)
+	sendMessageAsReply(message.Chat.ID, `<pre><code class="language-json">`+ret+`</code></pre>`, message.MessageID)
 }
 
 func handleInlineQuery(q *tgbotapi.InlineQuery) {
@@ -34,8 +34,12 @@ func handleInlineQuery(q *tgbotapi.InlineQuery) {
 	_, err = bot.AnswerInlineQuery(tgbotapi.InlineConfig{
 		InlineQueryID: q.ID,
 		Results: []interface{}{
-			tgbotapi.NewInlineQueryResultArticle("result", ret, ret),
-			tgbotapi.NewInlineQueryResultArticle("full", code+" => "+ret, code+" => "+ret),
+			tgbotapi.NewInlineQueryResultArticleHTML("result", ret,
+				`<pre><code class="language-json">`+ret+`</code></pre>`,
+			),
+			tgbotapi.NewInlineQueryResultArticleHTML("full", code+" → "+ret,
+				`<code>`+code+`</code> => <code class="language-json">`+ret+`</code>`,
+			),
 		},
 		IsPersonal: false,
 		CacheTime:  30,

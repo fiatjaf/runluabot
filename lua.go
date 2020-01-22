@@ -76,7 +76,7 @@ _ENV = original
 	}
 
 	globalsAfter := lunatico.GetGlobals(L, "ret")
-	bres, _ := json.Marshal(globalsAfter["ret"])
+	bres, _ := json.MarshalIndent(globalsAfter["ret"], "", "  ")
 	result := string(bres)
 	log.Debug().Str("code", actualCode).Str("ret", result).Msg("ran")
 

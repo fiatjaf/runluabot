@@ -12,13 +12,20 @@ import (
 	"github.com/fiatjaf/lunatico"
 )
 
-func runlua(actualCode string) (res string, err error) {
+func runlua(actualCode string, pretty bool) (res string, err error) {
 	actualCode = strings.TrimSpace(actualCode)
 	if actualCode == "" {
 		return "", nil
 	}
 
-	if strings.Index(actualCode, "\n") == -1 {
+	if strings.HasPrefix(actualCode, "function ") ||
+		strings.HasPrefix(actualCode, "for ") ||
+		strings.HasPrefix(actualCode, "local ") ||
+		strings.HasPrefix(actualCode, "repeat") ||
+		strings.HasPrefix(actualCode, ";") ||
+		strings.HasPrefix(actualCode, "if ") {
+
+	} else {
 		actualCode = "return " + actualCode
 	}
 
@@ -102,8 +109,18 @@ ret = load(code, 'runenv', 't', sandbox_env)()
 		}
 	}
 
-	bres, _ := json.MarshalIndent(globalsAfter["ret"], "", "  ")
-	result += string(bres)
+	format := json.Marshal
+	if pretty {
+		format = func(v interface{}) ([]byte, error) {
+			return json.MarshalIndent(v, "", "  ")
+		}
+	}
+
+	bret, _ := format(globalsAfter["ret"])
+	ret := string(bret)
+	if result == "" || ret != "null" {
+		result += ret
+	}
 	log.Debug().Str("code", actualCode).Str("result", result).Msg("ran")
 
 	return result, nil

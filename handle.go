@@ -13,9 +13,10 @@ func handle(upd tgbotapi.Update) {
 }
 
 func handleMessage(message *tgbotapi.Message) {
-	ret, err := runlua(message.Text)
+	ret, err := runlua(message.Text, true)
 	if err != nil {
 		log.Warn().Err(err).Msg("message runlua")
+		sendMessageAsReply(message.Chat.ID, `<pre><code>`+err.Error()+`</code></pre>`, message.MessageID)
 		return
 	}
 
@@ -25,7 +26,7 @@ func handleMessage(message *tgbotapi.Message) {
 func handleInlineQuery(q *tgbotapi.InlineQuery) {
 	code := q.Query
 
-	ret, err := runlua(code)
+	ret, err := runlua(code, false)
 	if err != nil {
 		log.Warn().Err(err).Msg("inline runlua")
 		return

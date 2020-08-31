@@ -47,6 +47,7 @@ sandbox_env = {
   tostring = tostring,
   type = type,
   unpack = unpack,
+  utf8 = utf8,
   string = { byte = string.byte, char = string.char, find = string.find,
       format = string.format, gmatch = string.gmatch, gsub = string.gsub,
       len = string.len, lower = string.lower, match = string.match,
@@ -87,7 +88,7 @@ ret = load(code, 'runenv', 't', sandbox_env)()
     `
 	err = L.DoString(code)
 	if err != nil {
-		st := stackTraceWithCode(err.Error(), code)
+		st := stackTraceWithCode(err.Error(), actualCode)
 		log.Print(st)
 		err = errors.New(st)
 		return
